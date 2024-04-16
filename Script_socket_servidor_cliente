@@ -1,0 +1,93 @@
+---socket_servidor----
+
+import socket
+import mysql.connector
+
+# Conectar a la base de datos
+conexion_bd = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="Colombia13/",
+    database="base_laboratorio"
+)
+cursor = conexion_bd.cursor()
+
+# Función para buscar la información de la persona según el número de teléfono
+def buscar_persona(numero_telefono):
+    try:
+        consulta ="SELECT dir_nombre, dir_direccion, ciudad_nombre FROM personas JOIN ciudades ON personas.dir_ciudad_id = ciudades.ciudad_id WHERE dir_tel = %s"
+        cursor.execute(consulta, (numero_telefono,))
+        resultado = cursor.fetchone()
+        return resultado
+    except Exception as e:
+        print("Error al buscar persona:", e)
+        return None
+
+# Configuración del servidor
+HOST = '127.0.0.1'  # Dirección IP del servidor
+PUERTO = 65432     # Puerto de escucha
+
+# Crear un socket TCP/IP
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as servidor:
+    # Enlace del socket con la dirección y el puerto
+    servidor.bind((HOST, PUERTO))
+    # Escuchar conexiones entrantes
+    servidor.listen()
+
+    print("Servidor en espera de conexiones...")
+
+    # Ciclo para aceptar conexiones entrantes
+    while True:
+        # Aceptar una nueva conexión
+        conexion, direccion_cliente = servidor.accept()
+        with conexion:
+            print('Conexión establecida desde', direccion_cliente)
+
+            # Recibir datos del cliente
+            data = conexion.recv(1024)
+            if not data:
+                break
+
+            # Decodificar los datos recibidos
+            numero_telefono = data.decode('utf-8').strip()
+
+            # Buscar información de la persona en la base de datos
+            resultado = buscar_persona(numero_telefono)
+
+            # Enviar la respuesta al cliente
+            if resultado:
+                respuesta = f"Nombre: {resultado[0]}, Dirección: {resultado[1]}, Ciudad: {resultado[2]}"
+            else:
+                respuesta = "No se encontró información para el número de teléfono proporcionado."
+
+            conexion.sendall(respuesta.encode('utf-8'))
+
+
+----------------------------------------------
+
+--socket_cliente------
+
+import socket
+
+# Configuración del servidor
+HOST = '127.0.0.1'  # Dirección IP del servidor
+PUERTO = 65432     # Puerto de escucha
+
+# Solicitar al usuario que ingrese el número de teléfono a buscar
+numero_telefono = input("Ingrese el número de teléfono a buscar: ")
+
+# Crear un socket TCP/IP
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cliente:
+    # Conectar al servidor
+    cliente.connect((HOST, PUERTO))
+
+    # Enviar el número de teléfono al servidor
+    cliente.sendall(numero_telefono.encode('utf-8'))
+
+    # Recibir la respuesta del servidor
+    data = cliente.recv(1024)
+
+    # Decodificar y mostrar la respuesta del servidor
+    print('Respuesta del servidor:', data.decode('utf-8'))
+
+
